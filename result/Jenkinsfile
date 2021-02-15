@@ -19,7 +19,7 @@ pipeline {
 
       steps{
         echo 'Running Unit Test on worker app.'
-        dir('worker'){
+        dir('result'){
           sh 'npm test'
         }
       }
