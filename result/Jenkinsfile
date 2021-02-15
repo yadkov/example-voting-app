@@ -1,0 +1,48 @@
+pipeline {
+  agent any
+
+  tools {
+    nodejs 'nodejs 8.9.0'
+  }
+
+  stages{
+    stage("build"){
+      when{
+        changeset "**/result/**"
+      }
+
+      steps{
+        echo 'step build'
+        dir('result'){
+          sh 'npm install'
+        }
+      }
+    }
+    stage('test'){
+      when{
+        changeset "**/result/**"
+      }
+
+      steps{
+        echo 'Running Unit Test on worker app.'
+        dir('result'){
+          sh 'npm test'
+        }
+      }
+    }
+
+  }
+  post { 
+    always { 
+        echo 'End of pipeline'
+    }
+    success {
+      slackSend (message: "Build Success - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)" )
+    }  
+    failure {
+      slackSend (message: "Build Failure - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)" )
+    }  
+  }
+  
+}
+
