@@ -14,7 +14,7 @@ pipeline {
       steps{
         echo 'step build'
         dir('vote'){
-          sh 'pip install -i requirements.txt'
+          sh 'pip install --user -r requirements.txt'
         }
       }
     }
