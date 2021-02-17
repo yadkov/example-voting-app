@@ -1,70 +1,74 @@
 pipeline {
   agent none
-
-  stages{
-    stage("worker - build"){
+  stages {
+    stage('worker - build') {
       agent {
-        docker { 
+        docker {
           image 'maven:3.6.1'
           args '-v $HOME/.m2:/root/.m2'
         }
-      }
-      when{
-        changeset "**/worker/*"
-      }
 
-      steps{
+      }
+      when {
+        changeset '**/worker/*'
+      }
+      steps {
         echo 'Compiling worker app'
-        dir('worker'){
+        dir(path: 'worker') {
           sh 'mvn compile'
         }
+
       }
     }
-    stage('worker - test'){
+
+    stage('worker - test') {
       agent {
-        docker { 
+        docker {
           image 'maven:3.6.1'
           args '-v $HOME/.m2:/root/.m2'
         }
-      }
-      when{
-        changeset "**/worker/*"
-      }
 
-      steps{
+      }
+      when {
+        changeset '**/worker/*'
+      }
+      steps {
         echo 'Running Unit Test on worker app.'
-        dir('worker'){
+        dir(path: 'worker') {
           sh 'mvn clean test'
         }
+
       }
     }
-    stage('worker - package'){
+
+    stage('worker - package') {
       agent {
-        docker { 
+        docker {
           image 'maven:3.6.1'
           args '-v $HOME/.m2:/root/.m2'
         }
-      }
-      when{
-        branch 'master'
-        changeset "**/worker/*"
-      }
 
-      steps{
+      }
+      when {
+        branch 'master'
+        changeset '**/worker/*'
+      }
+      steps {
         echo 'Packaging worker app'
-        dir('worker'){
+        dir(path: 'worker') {
           sh 'mvn package -DskipTests'
-          archiveArtifacts artifacts: '**/target/*.jar', fingerprint: true
+          archiveArtifacts(artifacts: '**/target/*.jar', fingerprint: true)
         }
+
       }
     }
-    stage('worker - docker-package'){
-      agent any
-      when{
-        changeset "**/worker/*"
-      }
 
-      steps{
+    stage('worker - docker-package') {
+      agent any
+      when {
+        changeset '**/worker/*'
+      }
+      steps {
         echo 'Packaging worker app in Docker container'
         script {
           docker.withRegistry('https://index.docker.io/v1/', 'hub.docker.com') {
@@ -73,49 +77,54 @@ pipeline {
             workerImage.push("latest")
           }
         }
+
       }
     }
-    stage("result - build"){
+
+    stage('result - build') {
       agent {
-        docker { 
+        docker {
           image 'node:8.9.0'
         }
-      }
-      when{
-        changeset "**/result/**"
-      }
 
-      steps{
+      }
+      when {
+        changeset '**/result/**'
+      }
+      steps {
         echo 'step build'
-        dir('result'){
+        dir(path: 'result') {
           sh 'npm install'
         }
+
       }
     }
-    stage('result - test'){
+
+    stage('result - test') {
       agent {
-        docker { 
+        docker {
           image 'node:8.9.0'
         }
-      }
-      when{
-        changeset "**/result/**"
-      }
 
-      steps{
+      }
+      when {
+        changeset '**/result/**'
+      }
+      steps {
         echo 'Running Unit Test on result app.'
-        dir('result'){
+        dir(path: 'result') {
           sh 'npm test'
         }
+
       }
     }
-    stage('result - docker-package'){
-      agent any
-      when{
-        changeset "**/result/*"
-      }
 
-      steps{
+    stage('result - docker-package') {
+      agent any
+      when {
+        changeset '**/result/*'
+      }
+      steps {
         echo 'Packaging result app in Docker container'
         script {
           docker.withRegistry('https://index.docker.io/v1/', 'hub.docker.com') {
@@ -124,53 +133,58 @@ pipeline {
             resultImage.push("latest")
           }
         }
+
       }
     }
-    stage("vote - build"){
+
+    stage('vote - build') {
       agent {
-        docker { 
+        docker {
           image 'python:2.7.16-slim'
           args '--user root'
         }
-      }
-      when{
-        changeset "**/vote/**"
-      }
 
-      steps{
+      }
+      when {
+        changeset '**/vote/**'
+      }
+      steps {
         echo 'step build'
-        dir('vote'){
+        dir(path: 'vote') {
           sh 'pip install -r requirements.txt'
         }
+
       }
     }
-    stage('vote - test'){
+
+    stage('vote - test') {
       agent {
-        docker { 
+        docker {
           image 'python:2.7.16-slim'
           args '--user root'
         }
-      }
-      when{
-        changeset "**/vote/**"
-      }
 
-      steps{
+      }
+      when {
+        changeset '**/vote/**'
+      }
+      steps {
         echo 'Running Unit Test on vote app.'
-        dir('vote'){
+        dir(path: 'vote') {
           sh 'pip install -r requirements.txt'
           sh 'nosetests -v'
         }
+
       }
     }
-    stage('vote - docker-package'){
-      agent any
-      when{
-        branch 'master'
-        changeset "**/vote/*"
-      }
 
-      steps{
+    stage('vote - docker-package') {
+      agent any
+      when {
+        branch 'master'
+        changeset '**/vote/*'
+      }
+      steps {
         echo 'Packaging vote app in Docker container'
         script {
           docker.withRegistry('https://index.docker.io/v1/', 'hub.docker.com') {
@@ -179,21 +193,31 @@ pipeline {
             voteImage.push("latest")
           }
         }
+
       }
     }
 
+    stage('Deploy to dev') {
+      agent any
+      steps {
+        echo 'Execute docker-compose'
+        sh 'docker-compose up -d'
+      }
+    }
 
   }
-  
-  post{
-    always{
+  post {
+    always {
       echo 'Building multibranch pipeline for worker is completed..'
     }
-    failure{
-      slackSend (channel: "instavote-cd", message: "Build Failed - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)")
+
+    failure {
+      slackSend(channel: 'instavote-cd', message: "Build Failed - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)")
     }
-    success{
-      slackSend (channel: "instavote-cd", message: "Build Succeeded - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)")
+
+    success {
+      slackSend(channel: 'instavote-cd', message: "Build Succeeded - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)")
     }
-  }  
+
+  }
 }
